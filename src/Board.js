@@ -10,9 +10,11 @@ export default class Board extends React.Component {
     const clients = this.getClients();
     this.state = {
       clients: {
-        backlog: clients.filter(client => !client.status || client.status === 'backlog'),
-        inProgress: clients.filter(client => client.status && client.status === 'in-progress'),
-        complete: clients.filter(client => client.status && client.status === 'complete'),
+        backlog: clients,
+        inProgress:[] ,
+        complete: [],
+        //clients.filter(client => client.status && client.status === 'complete'),
+        //clients.filter(client => client.status && client.status === 'in-progress')
       }
     }
     this.swimlanes = {
@@ -21,6 +23,57 @@ export default class Board extends React.Component {
       complete: React.createRef(),
     }
   }
+
+
+  componentDidMount() {
+    // Initialize Dragula with references to the swimlanes
+    this.dragula = Dragula([
+      this.swimlanes.backlog.current,
+      this.swimlanes.inProgress.current,
+      this.swimlanes.complete.current
+    ]);
+  
+    // Set up event listeners for Dragula
+    this.dragula.on('drop', (el, target, source, sibling) => {
+      const clientId = el.dataset.id;
+      const newStatus = target.id.toLowerCase().replace(' ', ''); // Normalize new status
+  
+      // Check if newStatus is valid before updating
+      if (['backlog', 'inprogress', 'complete'].includes(newStatus)) {
+        this.updateClientStatus(clientId, newStatus);
+      } else {
+        console.error(`Invalid status: ${newStatus}`);
+      }
+    });
+  }
+  
+  updateClientStatus(clientId, newStatus) {
+    this.setState((prevState) => {
+      const clients = { ...prevState.clients };
+      let movedClient;
+  
+      // Remove the client from the previous swimlane
+      Object.keys(clients).forEach((key) => {
+        clients[key] = clients[key].filter((client) => {
+          if (client.id === clientId) {
+            movedClient = { ...client, status: newStatus };
+            return false;
+          }
+          return true;
+        });
+      });
+  
+      // Ensure newStatus is one of the keys in clients
+      if (movedClient && clients[newStatus]) {
+        clients[newStatus].push(movedClient);
+      }
+  
+      return { clients };
+    });
+  }
+  
+
+
   getClients() {
     return [
       ['1','Stark, White and Abbott','Cloned Optimal Architecture', 'in-progress'],
@@ -61,13 +114,13 @@ export default class Board extends React.Component {
       <div className="Board">
         <div className="container-fluid">
           <div className="row">
-            <div className="col-md-4">
+            <div className="Swimlane-column" id="backlog">
               {this.renderSwimlane('Backlog', this.state.clients.backlog, this.swimlanes.backlog)}
             </div>
-            <div className="col-md-4">
+            <div className="Swimlane-column" id="in-progress">
               {this.renderSwimlane('In Progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
             </div>
-            <div className="col-md-4">
+            <div className="Swimlane-column" id="complete">
               {this.renderSwimlane('Complete', this.state.clients.complete, this.swimlanes.complete)}
             </div>
           </div>
